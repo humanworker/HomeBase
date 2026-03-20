@@ -10,11 +10,13 @@ interface PinModalProps {
   onClose: () => void;
 }
 
-const CATEGORIES: Category[] = ['Appliance', 'Utility', 'Structure', 'Furniture', 'General'];
+const CATEGORIES: Category[] = ['Appliance', 'Utility', 'Structure', 'Furniture', 'General', 'Idea'];
 
 export default function PinModal({ pin, floorPlanId, onClose }: PinModalProps) {
   const { updatePin, deletePin, addTask, updateTask, deleteTask, completeTask } = useStore();
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [newTask, setNewTask] = useState<Partial<Task>>({
     title: '',
     dueDate: new Date().toISOString().split('T')[0],
@@ -223,9 +225,41 @@ export default function PinModal({ pin, floorPlanId, onClose }: PinModalProps) {
                   {task.completed ? <CheckCircle2 className="text-emerald-500" size={20} /> : <Circle size={20} />}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium text-stone-800 truncate ${task.completed ? 'line-through' : ''}`}>
-                    {task.title}
-                  </p>
+                  {editingTaskId === task.id ? (
+                    <input
+                      autoFocus
+                      value={editingTaskTitle}
+                      onChange={(e) => setEditingTaskTitle(e.target.value)}
+                      onBlur={() => {
+                        if (editingTaskTitle.trim()) {
+                          updateTask(floorPlanId, pin.id, task.id, { title: editingTaskTitle.trim() });
+                        }
+                        setEditingTaskId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          if (editingTaskTitle.trim()) {
+                            updateTask(floorPlanId, pin.id, task.id, { title: editingTaskTitle.trim() });
+                          }
+                          setEditingTaskId(null);
+                        } else if (e.key === 'Escape') {
+                          setEditingTaskId(null);
+                        }
+                      }}
+                      className="w-full bg-white border border-emerald-500 rounded px-2 py-1 text-sm font-medium text-stone-800 focus:outline-none mb-1"
+                    />
+                  ) : (
+                    <p 
+                      onDoubleClick={() => {
+                        setEditingTaskId(task.id);
+                        setEditingTaskTitle(task.title);
+                      }}
+                      className={`text-sm font-medium text-stone-800 truncate cursor-text ${task.completed ? 'line-through opacity-60' : ''}`}
+                      title="Double-click to edit"
+                    >
+                      {task.title}
+                    </p>
+                  )}
                   <div className="flex items-center gap-3 mt-1 text-xs text-stone-500">
                     <span className="flex items-center gap-1">
                       <Calendar size={12} />

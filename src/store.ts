@@ -21,6 +21,7 @@ interface AppState {
   floorPlans: FloorPlan[];
   activeFloorPlanId: string | null;
   addFloorPlan: (name: string, image: string) => void;
+  updateFloorPlan: (id: string, name: string) => void;
   setActiveFloorPlan: (id: string) => void;
   addPin: (floorPlanId: string, pin: Omit<Pin, 'id'>) => void;
   updatePin: (floorPlanId: string, pinId: string, pin: Partial<Pin>) => void;
@@ -42,6 +43,14 @@ export const useStore = create<AppState>()(
         setStore((state) => ({
           floorPlans: [...state.floorPlans, { id, name, image, pins: [] }],
           activeFloorPlanId: state.activeFloorPlanId || id,
+        }));
+      },
+
+      updateFloorPlan: (id, name) => {
+        setStore((state) => ({
+          floorPlans: state.floorPlans.map((fp) =>
+            fp.id === id ? { ...fp, name } : fp
+          ),
         }));
       },
 

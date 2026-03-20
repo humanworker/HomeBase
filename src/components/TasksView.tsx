@@ -111,17 +111,17 @@ export default function TasksView() {
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-medium text-stone-900 mb-1">{task.title}</h3>
                       
+                      <div className="flex items-center gap-1.5 text-sm text-stone-500 mb-2">
+                        <MapPin size={16} className="shrink-0" />
+                        <span className="truncate">{floorPlanName} &rsaquo; {pinTitle}</span>
+                      </div>
+                      
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-stone-500">
                         <span className={`flex items-center gap-1.5 font-medium ${
                           groupName === 'Overdue' ? 'text-red-600' : ''
                         }`}>
                           <Calendar size={16} />
                           {format(parseISO(task.dueDate), 'MMM d, yyyy')}
-                        </span>
-                        
-                        <span className="flex items-center gap-1.5">
-                          <MapPin size={16} />
-                          {floorPlanName} &rsaquo; {pinTitle}
                         </span>
 
                         {task.isRecurring && (

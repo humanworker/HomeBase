@@ -1,4 +1,4 @@
-export type Category = 'Appliance' | 'Utility' | 'Structure' | 'Furniture' | 'General';
+export type Category = 'Appliance' | 'Utility' | 'Structure' | 'Furniture' | 'General' | 'Idea';
 
 export interface Task {
   id: string;

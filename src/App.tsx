@@ -6,7 +6,9 @@ import TasksView from './components/TasksView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'floorplan' | 'tasks'>('floorplan');
-  const { floorPlans, addFloorPlan } = useStore();
+  const { floorPlans, addFloorPlan, activeFloorPlanId, setActiveFloorPlan, updateFloorPlan } = useStore();
+  const [editingFpId, setEditingFpId] = useState<string | null>(null);
+  const [editingFpName, setEditingFpName] = useState('');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -32,18 +34,69 @@ export default function App() {
           <h1 className="text-xl font-semibold tracking-tight text-stone-800">HomeBase</h1>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-          <button
-            onClick={() => setActiveTab('floorplan')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-              activeTab === 'floorplan'
-                ? 'bg-emerald-50 text-emerald-700 font-medium'
-                : 'text-stone-600 hover:bg-stone-50'
-            }`}
-          >
-            <Map size={20} />
-            Floor Plans
-          </button>
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <div className="space-y-1">
+            <button
+              onClick={() => setActiveTab('floorplan')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                activeTab === 'floorplan'
+                  ? 'bg-emerald-50 text-emerald-700 font-medium'
+                  : 'text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <Map size={20} />
+              Floor Plans
+            </button>
+
+            {floorPlans.length > 0 && (
+              <div className="pl-11 pr-2 py-1 space-y-1">
+                {floorPlans.map((fp) => (
+                  <div key={fp.id} className="group flex items-center">
+                    {editingFpId === fp.id ? (
+                      <input
+                        autoFocus
+                        value={editingFpName}
+                        onChange={(e) => setEditingFpName(e.target.value)}
+                        onBlur={() => {
+                          if (editingFpName.trim()) updateFloorPlan(fp.id, editingFpName.trim());
+                          setEditingFpId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            if (editingFpName.trim()) updateFloorPlan(fp.id, editingFpName.trim());
+                            setEditingFpId(null);
+                          } else if (e.key === 'Escape') {
+                            setEditingFpId(null);
+                          }
+                        }}
+                        className="w-full bg-white border border-emerald-500 rounded px-2 py-1 text-sm focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setActiveFloorPlan(fp.id);
+                          setActiveTab('floorplan');
+                        }}
+                        onDoubleClick={() => {
+                          setEditingFpId(fp.id);
+                          setEditingFpName(fp.name);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-sm truncate transition-colors ${
+                          activeFloorPlanId === fp.id && activeTab === 'floorplan'
+                            ? 'text-emerald-700 font-medium bg-emerald-50/50'
+                            : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50'
+                        }`}
+                        title="Double-click to rename"
+                      >
+                        {fp.name}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => setActiveTab('tasks')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
