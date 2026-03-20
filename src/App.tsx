@@ -1,14 +1,131 @@
 import React, { useState } from 'react';
-import { Home, Map, CheckSquare, Settings, Plus } from 'lucide-react';
+import { Home, Map, CheckSquare, Settings, Plus, GripVertical } from 'lucide-react';
 import { useStore } from './store';
 import FloorPlanView from './components/FloorPlanView';
 import TasksView from './components/TasksView';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+function SortableFloorPlanItem({
+  fp,
+  editingFpId,
+  editingFpName,
+  setEditingFpName,
+  setEditingFpId,
+  updateFloorPlan,
+  setActiveFloorPlan,
+  setActiveTab,
+  activeFloorPlanId,
+  activeTab,
+}: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: fp.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="group flex items-center relative">
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute -left-6 p-1 text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <GripVertical size={14} />
+      </div>
+      {editingFpId === fp.id ? (
+        <input
+          autoFocus
+          value={editingFpName}
+          onChange={(e) => setEditingFpName(e.target.value)}
+          onBlur={() => {
+            if (editingFpName.trim()) updateFloorPlan(fp.id, editingFpName.trim());
+            setEditingFpId(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              if (editingFpName.trim()) updateFloorPlan(fp.id, editingFpName.trim());
+              setEditingFpId(null);
+            } else if (e.key === 'Escape') {
+              setEditingFpId(null);
+            }
+          }}
+          className="w-full bg-white border border-emerald-500 rounded px-2 py-1 text-sm focus:outline-none"
+        />
+      ) : (
+        <button
+          onClick={() => {
+            setActiveFloorPlan(fp.id);
+            setActiveTab('floorplan');
+          }}
+          onDoubleClick={() => {
+            setEditingFpId(fp.id);
+            setEditingFpName(fp.name);
+          }}
+          className={`w-full text-left px-3 py-1.5 rounded-lg text-sm truncate transition-colors ${
+            activeFloorPlanId === fp.id && activeTab === 'floorplan'
+              ? 'text-emerald-700 font-medium bg-emerald-50/50'
+              : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50'
+          }`}
+          title="Double-click to rename"
+        >
+          {fp.name}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'floorplan' | 'tasks'>('floorplan');
-  const { floorPlans, addFloorPlan, activeFloorPlanId, setActiveFloorPlan, updateFloorPlan } = useStore();
+  const { floorPlans, addFloorPlan, activeFloorPlanId, setActiveFloorPlan, updateFloorPlan, reorderFloorPlans } = useStore();
   const [editingFpId, setEditingFpId] = useState<string | null>(null);
   const [editingFpName, setEditingFpName] = useState('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = floorPlans.findIndex((fp) => fp.id === active.id);
+      const newIndex = floorPlans.findIndex((fp) => fp.id === over.id);
+      reorderFloorPlans(oldIndex, newIndex);
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,49 +167,32 @@ export default function App() {
 
             {floorPlans.length > 0 && (
               <div className="pl-11 pr-2 py-1 space-y-1">
-                {floorPlans.map((fp) => (
-                  <div key={fp.id} className="group flex items-center">
-                    {editingFpId === fp.id ? (
-                      <input
-                        autoFocus
-                        value={editingFpName}
-                        onChange={(e) => setEditingFpName(e.target.value)}
-                        onBlur={() => {
-                          if (editingFpName.trim()) updateFloorPlan(fp.id, editingFpName.trim());
-                          setEditingFpId(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            if (editingFpName.trim()) updateFloorPlan(fp.id, editingFpName.trim());
-                            setEditingFpId(null);
-                          } else if (e.key === 'Escape') {
-                            setEditingFpId(null);
-                          }
-                        }}
-                        className="w-full bg-white border border-emerald-500 rounded px-2 py-1 text-sm focus:outline-none"
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={floorPlans.map((fp) => fp.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {floorPlans.map((fp) => (
+                      <SortableFloorPlanItem
+                        key={fp.id}
+                        fp={fp}
+                        editingFpId={editingFpId}
+                        editingFpName={editingFpName}
+                        setEditingFpName={setEditingFpName}
+                        setEditingFpId={setEditingFpId}
+                        updateFloorPlan={updateFloorPlan}
+                        setActiveFloorPlan={setActiveFloorPlan}
+                        setActiveTab={setActiveTab}
+                        activeFloorPlanId={activeFloorPlanId}
+                        activeTab={activeTab}
                       />
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setActiveFloorPlan(fp.id);
-                          setActiveTab('floorplan');
-                        }}
-                        onDoubleClick={() => {
-                          setEditingFpId(fp.id);
-                          setEditingFpName(fp.name);
-                        }}
-                        className={`w-full text-left px-3 py-1.5 rounded-lg text-sm truncate transition-colors ${
-                          activeFloorPlanId === fp.id && activeTab === 'floorplan'
-                            ? 'text-emerald-700 font-medium bg-emerald-50/50'
-                            : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50'
-                        }`}
-                        title="Double-click to rename"
-                      >
-                        {fp.name}
-                      </button>
-                    )}
-                  </div>
-                ))}
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             )}
           </div>

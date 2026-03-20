@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trash2, Plus, Calendar, Image as ImageIcon, CheckCircle2, Circle } from 'lucide-react';
+import { X, Trash2, Plus, Calendar, Image as ImageIcon, CheckCircle2, Circle, Move, ArrowRightLeft } from 'lucide-react';
 import { useStore } from '../store';
 import { Pin, Category, Task } from '../types';
 import { format, parseISO } from 'date-fns';
@@ -8,13 +8,17 @@ interface PinModalProps {
   pin: Pin;
   floorPlanId: string;
   onClose: () => void;
+  inline?: boolean;
+  onMovePin?: (pinId: string) => void;
 }
 
 const CATEGORIES: Category[] = ['Appliance', 'Utility', 'Structure', 'Furniture', 'General', 'Idea'];
 
-export default function PinModal({ pin, floorPlanId, onClose }: PinModalProps) {
-  const { updatePin, deletePin, addTask, updateTask, deleteTask, completeTask } = useStore();
+export default function PinModal({ pin, floorPlanId, onClose, inline = false, onMovePin }: PinModalProps) {
+  const { floorPlans, updatePin, deletePin, addTask, updateTask, deleteTask, completeTask, transferPin } = useStore();
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [newTask, setNewTask] = useState<Partial<Task>>({
@@ -24,6 +28,8 @@ export default function PinModal({ pin, floorPlanId, onClose }: PinModalProps) {
     recurringInterval: 'months',
     recurringValue: 1,
   });
+
+  const otherFloorPlans = floorPlans.filter(fp => fp.id !== floorPlanId);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,7 +69,7 @@ export default function PinModal({ pin, floorPlanId, onClose }: PinModalProps) {
   };
 
   return (
-    <div className="absolute top-0 right-0 w-96 h-full bg-white shadow-2xl border-l border-stone-200 flex flex-col z-50 animate-in slide-in-from-right">
+    <div className={`${inline ? 'w-full h-auto flex flex-col' : 'absolute top-0 right-0 w-96 h-full bg-white shadow-2xl border-l border-stone-200 flex flex-col z-50 animate-in slide-in-from-right'}`}>
       {/* Header */}
       <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50">
         <input
@@ -73,9 +79,11 @@ export default function PinModal({ pin, floorPlanId, onClose }: PinModalProps) {
           className="text-xl font-semibold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded px-2 py-1 w-full mr-4"
           placeholder="Item Name"
         />
-        <button onClick={onClose} className="p-2 text-stone-400 hover:text-stone-600 rounded-full hover:bg-stone-200 transition-colors">
-          <X size={20} />
-        </button>
+        {!inline && (
+          <button onPointerDown={onClose} className="p-2 text-stone-400 hover:text-stone-600 rounded-full hover:bg-stone-200 transition-colors">
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
@@ -288,19 +296,83 @@ export default function PinModal({ pin, floorPlanId, onClose }: PinModalProps) {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-stone-100 bg-stone-50">
-        <button
-          onClick={() => {
-            if (confirm('Are you sure you want to delete this pin?')) {
-              deletePin(floorPlanId, pin.id);
-              onClose();
-            }
-          }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
-        >
-          <Trash2 size={18} />
-          Delete Pin
-        </button>
+      <div className="p-4 border-t border-stone-100 bg-stone-50 space-y-2">
+        {isTransferring ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-stone-600 font-medium mb-1">Select destination floor plan:</p>
+            {otherFloorPlans.length === 0 ? (
+              <p className="text-sm text-stone-500 italic">No other floor plans available.</p>
+            ) : (
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {otherFloorPlans.map(fp => (
+                  <button
+                    key={fp.id}
+                    onClick={() => {
+                      transferPin(pin.id, floorPlanId, fp.id);
+                      onClose();
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-colors"
+                  >
+                    {fp.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setIsTransferring(false)}
+              className="w-full bg-stone-200 text-stone-700 rounded-xl py-2 text-sm font-medium hover:bg-stone-300 transition-colors mt-2"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : isConfirmingDelete ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-stone-600 text-center font-medium mb-1">Are you sure you want to delete this pin?</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  deletePin(floorPlanId, pin.id);
+                  onClose();
+                }}
+                className="flex-1 bg-red-600 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={() => setIsConfirmingDelete(false)}
+                className="flex-1 bg-stone-200 text-stone-700 rounded-xl py-2.5 text-sm font-medium hover:bg-stone-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onMovePin?.(pin.id)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 rounded-xl transition-colors font-medium text-sm"
+              >
+                <Move size={16} />
+                Move
+              </button>
+              <button
+                onClick={() => setIsTransferring(true)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 rounded-xl transition-colors font-medium text-sm"
+              >
+                <ArrowRightLeft size={16} />
+                Transfer
+              </button>
+            </div>
+            <button
+              onClick={() => setIsConfirmingDelete(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium text-sm"
+            >
+              <Trash2 size={16} />
+              Delete Pin
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

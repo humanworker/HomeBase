@@ -22,10 +22,13 @@ interface AppState {
   activeFloorPlanId: string | null;
   addFloorPlan: (name: string, image: string) => void;
   updateFloorPlan: (id: string, name: string) => void;
+  reorderFloorPlans: (startIndex: number, endIndex: number) => void;
+  updateFloorPlanImage: (id: string, image: string) => void;
   setActiveFloorPlan: (id: string) => void;
   addPin: (floorPlanId: string, pin: Omit<Pin, 'id'>) => void;
   updatePin: (floorPlanId: string, pinId: string, pin: Partial<Pin>) => void;
   deletePin: (floorPlanId: string, pinId: string) => void;
+  transferPin: (pinId: string, sourceId: string, targetId: string) => void;
   addTask: (floorPlanId: string, pinId: string, task: Omit<Task, 'id'>) => void;
   updateTask: (floorPlanId: string, pinId: string, taskId: string, task: Partial<Task>) => void;
   deleteTask: (floorPlanId: string, pinId: string, taskId: string) => void;
@@ -50,6 +53,23 @@ export const useStore = create<AppState>()(
         setStore((state) => ({
           floorPlans: state.floorPlans.map((fp) =>
             fp.id === id ? { ...fp, name } : fp
+          ),
+        }));
+      },
+
+      reorderFloorPlans: (startIndex, endIndex) => {
+        setStore((state) => {
+          const result = Array.from(state.floorPlans);
+          const [removed] = result.splice(startIndex, 1);
+          result.splice(endIndex, 0, removed);
+          return { floorPlans: result };
+        });
+      },
+
+      updateFloorPlanImage: (id, image) => {
+        setStore((state) => ({
+          floorPlans: state.floorPlans.map((fp) =>
+            fp.id === id ? { ...fp, image } : fp
           ),
         }));
       },
@@ -89,6 +109,31 @@ export const useStore = create<AppState>()(
               : fp
           ),
         }));
+      },
+
+      transferPin: (pinId, sourceId, targetId) => {
+        setStore((state) => {
+          const sourceFp = state.floorPlans.find((fp) => fp.id === sourceId);
+          if (!sourceFp) return state;
+          
+          const pin = sourceFp.pins.find((p) => p.id === pinId);
+          if (!pin) return state;
+
+          // Position the pin to the left of the new floor plan
+          const transferredPin = { ...pin, x: 5, y: 50 };
+
+          return {
+            floorPlans: state.floorPlans.map((fp) => {
+              if (fp.id === sourceId) {
+                return { ...fp, pins: fp.pins.filter((p) => p.id !== pinId) };
+              }
+              if (fp.id === targetId) {
+                return { ...fp, pins: [...fp.pins, transferredPin] };
+              }
+              return fp;
+            }),
+          };
+        });
       },
 
       addTask: (floorPlanId, pinId, taskData) => {
