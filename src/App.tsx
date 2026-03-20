@@ -144,13 +144,6 @@ export default function App() {
     <div className="min-h-screen bg-stone-50 text-stone-900 font-sans flex overflow-hidden">
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-stone-200 flex flex-col">
-        <div className="p-6 flex items-center gap-3 border-b border-stone-100">
-          <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center">
-            <Home size={24} />
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight text-stone-800">HomeBase</h1>
-        </div>
-
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <div className="space-y-1">
             <button
