@@ -1,0 +1,5 @@
+{
+  "name": "HomeBase",
+  "description": "A visual house management tool and source of truth for partners, featuring floor plans and recurring tasks.",
+  "requestFramePermissions": []
+}
